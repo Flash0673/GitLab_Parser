@@ -67,6 +67,14 @@ class Parser:
     def __get_advanced_data(self, df):
         if df is None:
             return None
+
+        def count_lines(string):
+            count = 0
+            for el in string.split(';'):
+                if not re.fullmatch('[ ]*', el):
+                    count += 1
+            return count
+
         df['changes'] = ''
         df['add'] = ''
         df['del'] = ''
@@ -106,6 +114,9 @@ class Parser:
             lambda row: self.get_whole_file(row['project_id'],
                                       row['commit_id'],
                                       row['path']), axis=1)
+        df = df.fillna(' ;')
+        df['lines_inserted'] = df['add'].apply(func=count_lines)
+        df['lines_deleted'] = df['del'].apply(func=count_lines)
         return df
 
     def get_merge_requests_file(self, input_file: str, output_file: str) -> None:
@@ -432,8 +443,11 @@ class Parser:
                 d_new[file_name] = file_new_with_name
 
                 past_sha = ''
-                parent_id = df[df.sha == commit_sha][0].values[0].parent_ids[0]
-                past_sha = parent_id[:8]
+                try:
+                    parent_id = df[df.sha == commit_sha][0].values[0].parent_ids[0]
+                    past_sha = parent_id[:8]
+                except IndexError:
+                    continue
 
                 if past_sha != '':
                     arc = project.repository_archive(sha=past_sha, format='zip')
@@ -478,6 +492,10 @@ class Parser:
             "target"
         ])
         return self.__handle_commits(project_id, commits, df)
+
+    def get_project_commits_with_all_features_web(self, project_id: str):
+        df = self.get_project_commits_with_basic_features_web(project_id)
+        return self.__get_advanced_data(df)
 
     def get_project_merge_requests_web(self, project_id: str):
         """Return merge requests"""
@@ -524,3 +542,7 @@ class Parser:
             self.__get_advanced_data(df)
 
             return df
+
+if __name__ == "__main__":
+    p = Parser(token="BxntftQ1zwq_28vtS2Qm")
+    print(list(p.get_project_commits_with_all_features_web(project_id=11163).columns))
