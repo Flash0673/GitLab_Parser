@@ -117,6 +117,9 @@ class Parser:
         df = df.fillna(' ;')
         df['lines_inserted'] = df['add'].apply(func=count_lines)
         df['lines_deleted'] = df['del'].apply(func=count_lines)
+        df = df[df["file_past"].apply(str).apply(len) > 20]
+        df = df[df["file_new"].apply(str).apply(len) > 20]
+        df.drop("flag", axis=1, inplace=True)
         return df
 
     def get_merge_requests_file(self, input_file: str, output_file: str) -> None:
@@ -465,7 +468,7 @@ class Parser:
                 array_new.append(d_new)
                 array_past.append(d_past)
 
-                if file_new == file_past:
+                if file_new == file_past or file_new == "" or file_past == "":
                     flag = 1
                 else:
                     flag = 0
