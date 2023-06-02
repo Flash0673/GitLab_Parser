@@ -497,6 +497,7 @@ class Parser:
         return self.__handle_commits(project_id, commits, df)
 
     def get_project_commits_with_all_features_web(self, project_id: str):
+        """Returns project's commits with all features"""
         df = self.get_project_commits_with_basic_features_web(project_id)
         return self.__get_advanced_data(df)
 
