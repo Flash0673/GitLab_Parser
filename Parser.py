@@ -119,7 +119,10 @@ class Parser:
         df['lines_deleted'] = df['del'].apply(func=count_lines)
         df = df[df["file_past"].apply(str).apply(len) > 20]
         df = df[df["file_new"].apply(str).apply(len) > 20]
-        df.drop("flag", axis=1, inplace=True)
+        df.drop(["flag", "files changed"], axis=1, inplace=True)
+        df.reset_index(drop=True, inplace=True)
+        df["add"] = df["add"].replace(np.nan, "")
+        df["del"] = df["del"].replace(np.nan, "")
         return df
 
     def get_merge_requests_file(self, input_file: str, output_file: str) -> None:
@@ -530,19 +533,11 @@ class Parser:
                 commits = requests.get(
                     f"https://git.miem.hse.ru/api/v4/projects/{project_id}/merge_requests/{merge['iid']}/commits",
                     headers=self.HEADERS).json()
-                self.__handle_commits(project_id, commits, df)
-                self.__get_advanced_data(df)
-
-            df[['file_past', 'file_new', 'array_past', 'array_new', 'flag']] = df.apply(
-                lambda row: self.get_whole_file(row['project_id'],
-                                                row['commit_id'],
-                                                row['path']), axis=1)
-            return df
+                df = self.__handle_commits(project_id, commits, df)
+                return self.__get_advanced_data(df)
 
         else:
             commits = requests.get(f"https://git.miem.hse.ru/api/v4/projects/{project_id}/merge_requests/{iid}/commits",
                                    headers=self.HEADERS).json()  # Получаем коммиты
             df = self.__handle_commits(project_id, commits, df)
-            self.__get_advanced_data(df)
-
-            return df
+            return self.__get_advanced_data(df)
