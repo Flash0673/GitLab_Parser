@@ -542,7 +542,3 @@ class Parser:
             self.__get_advanced_data(df)
 
             return df
-
-if __name__ == "__main__":
-    p = Parser(token="BxntftQ1zwq_28vtS2Qm")
-    print(list(p.get_project_commits_with_all_features_web(project_id=11163).columns))
