@@ -22,7 +22,16 @@ import gitlab
 
 
 class Parser:
+    """
+    Данный модуль представляет собой парсер коммитов гитлаба.
+    Реализованы методы, которые взаимодейтвуют с файлами и с вебом.
+    """
     def __init__(self, token=""):
+        """
+        Функция инициализации парсера, принимает токен для обращения к api гитлаба
+        :param token: если токен не указывается, значение по умолчанию - пустая строка,
+        что соответсвует доступу только к открытым проектам
+        """
         self.TOKEN = token
         self.HEADERS = {'Authorization': 'Bearer ' + token}
 
@@ -30,6 +39,13 @@ class Parser:
         self.t = pd.DataFrame()
 
     def __handle_commits(self, project_id, commits, df: pd.DataFrame):
+        """
+        Функция обрабатывает коммиты и возвращает датафрейм с основными признаками
+        :param project_id: id проекта в гитлабе
+        :param commits: коммиты проекта
+        :param df: датафрейм для изменения
+        :return: датафрейм с основными признаками
+        """
         if type(commits) is dict and commits.get("message", "fine") != "fine" or len(commits) == 0:
             return None
         for commit in commits:
@@ -65,6 +81,11 @@ class Parser:
         return df
 
     def __get_advanced_data(self, df):
+        """
+        Функция достает дополнительные признаки для предоставленных данных
+        :param df: датафрейм с основными признаками
+        :return: датафрейм с дополнительными признаками
+        """
         if df is None:
             return None
 
@@ -129,7 +150,12 @@ class Parser:
         return df
 
     def get_merge_requests_file(self, input_file: str, output_file: str) -> None:
-        """Writes merge requests' info from the given file to the output file"""
+        """
+        Функция достает мердж реквесты из файла
+        :param input_file: путь до входного файла
+        :param output_file: путь до выходного файла
+        :return:
+        """
         __projects = set()
 
         def search_for_merges(data):
@@ -163,7 +189,13 @@ class Parser:
         output.close()
 
     def get_merge_commits_file(self, input_file: str, output_file: str, limit=0) -> None:
-        """Writes merge commits from the given file to the output file"""
+        """
+        Функция обрабатывает мердж коммиты и записывает их в файл
+        :param input_file: путь до входного файла
+        :param output_file: путь до выходного файла
+        :param limit: ограничение по коммитам
+        :return:
+        """
 
         df = pd.DataFrame(data=None, columns=[
             "project_id",
@@ -222,7 +254,12 @@ class Parser:
         df.to_csv(output_file)
 
     def get_all_features_file(self, input_file: str, output_file=None) -> None:
-        """Get advanced features"""
+        """
+        Добавляет дополнительные признаки к сущесвтвющим коммитам
+        :param input_file: путь до входного файла
+        :param output_file: путь до выходного файла
+        :return:
+        """
         if output_file is None:
             output_file = input_file
         df = pd.read_csv(input_file, index_col=[0])
@@ -231,10 +268,11 @@ class Parser:
 
     @staticmethod
     def get_difference(changes):
-        '''
-        Вход: diff-коммита.
-        Выход: два столбца: добавленный/удаленный код в этом коммите.
-        '''
+        """
+        Возвращает добавленный/удаленный код в коммите на основе diff
+        :param changes: колонка changes в коммите
+        :return:
+        """
         deleting = ''
         adding = ''
         for i in range(len(changes)):
@@ -289,8 +327,10 @@ class Parser:
 
     def get_changes(self, project_id_, commit_id_):
         """
-        Вход: id проекта и коммита.
-        Выход: необходимая информация (структура словаря: diff, commit_message etc.) полученная по конкретному коммиту
+        Возвращает необходимую информацию (структура словаря: diff, commit_message etc.) полученную по конкретному коммиту
+        :param project_id_: id проекта
+        :param commit_id_: id коммита
+        :return:
         """
         response = requests.get(
             f"https://git.miem.hse.ru/api/v4/projects/{project_id_}/repository/commits/{'commit_id_'}/diff",
@@ -299,8 +339,10 @@ class Parser:
 
     def get_data(self, project_id_, commit_id_):
         """
-        Вход: id проекта и коммита
-        Выход: ссылка на коммит на гитлабе, diff коммита
+        Возвращает ссылку на коммит на гитлабе, diff коммита
+        :param project_id_: id проекта
+        :param commit_id_: id коммита
+        :return:
         """
         response_1 = requests.get(
             f"https://git.miem.hse.ru/api/v4/projects/{project_id_}/repository/commits/{commit_id_}",
@@ -320,22 +362,28 @@ class Parser:
     @staticmethod
     def count_files(changes):
         """
-        Вход: diff коммита
-        Выход: кол-во файлов, измененных в коммите
+        Возвращает кол-во файлов, измененных в коммите
+        :param changes: diff коммита
+        :return:
         """
         return len(changes)
 
     @staticmethod
     def find_import(add):
-        '''
-        Вход: добавленные строки в коммите
-        ВЫход: кол-во добавленных импортов в коммите
-        '''
+        """
+        Возвращает кол-во добавленных импортов в коммите
+        :param add: добавленные строки в коммите
+        :return:
+        """
         return len([m.start() for m in re.finditer('import', add)])
 
     @staticmethod
     def find_key_word_code(code):
-        """Finds key words def, class in code"""
+        """
+        Возвращает кол-во ключевых слов (def, class)
+        :param code: добавленные или удаленные строки в коммите
+        :return:
+        """
         d = {}
         d["def"] = len([m.start() for m in re.finditer('def', code)])
         d["class"] = len([m.start() for m in re.finditer('class', code)])
@@ -343,6 +391,11 @@ class Parser:
 
     @staticmethod
     def find_key_words_message(message):
+        """
+        Возвращает ключевые слов
+        :param message: commit message
+        :return:
+        """
         key_words = ["remove", "merge branch", "fix", "add",
                          "update", "change", "release", "correct", "replace",
                          "deleted", "refactor", "clean", "test", "minor", "prepar",
@@ -362,10 +415,11 @@ class Parser:
 
     @staticmethod
     def get_path(diff):
-        '''
-        Вход: diff коммита
-        Выход: массив путей до файлов, которые были изменены в коммите
-        '''
+        """
+        Возвращает массив путей до файлов, которые были изменены в коммите
+        :param diff: diff коммита
+        :return:
+        """
         false_commit = ''
         paths = []
         if isinstance(diff, str):
@@ -381,19 +435,11 @@ class Parser:
         return paths
 
     @staticmethod
-    def is_merge(x):
-        """
-        Проверяет является ли рассматриеваемая запись в структуре проекта - мерджем
-        """
-        if ('merge' in x) or ('Merge' in x):
-            return 1
-        else:
-            return 0
-
-    @staticmethod
     def convert_time(date_str):
         """
         Конвертирует даты к одному формату (гитлаб выдает даты в разном формате).
+        :param date_str: даты в коммите
+        :return:
         """
         date = datetime.datetime.fromisoformat(date_str)
         utc = pytz.UTC
@@ -403,8 +449,9 @@ class Parser:
     @staticmethod
     def count_py_file(path_files):
         """
-        Вход: пути до файлов, измененных в коммите
-        Выход: кол-во питоновских файлов, измененных в коммите
+        Возвращает кол-во питоновских файлов, измененных в коммите
+        :param path_files: пути до файлов, измененных в коммите
+        :return:
         """
         subs = '.py'
         subs_1 = '.pyc'
@@ -416,9 +463,12 @@ class Parser:
 
     def get_whole_file(self, project_id, commit_sha, file_names):
         """
-        Вход: id проекта, sha коммита, пути до файлов, измененных в этом коммите
-        Выход: изначальный код файлов в виде одной строки, новый код файлов в виде одной строки
+        Возварщает изначальный код файлов в виде одной строки, новый код файлов в виде одной строки
                 массив: путь до файла - его код (до и после коммита), проверка на совпадение кода "до" и "после" коммита
+        :param project_id: id проекта
+        :param commit_sha: sha коммита
+        :param file_names: пути до файлов измененных в этом коммите
+        :return:
         """
 
         stop = ['gitignore',
@@ -451,10 +501,6 @@ class Parser:
             self.t.reset_index(drop=True, inplace=True)
             self.t['sha'] = self.t[0].apply(lambda x: x.id[:8])
             self.t['title'] = self.t[0].apply(lambda x: x.title)
-            # t['is_merge'] = t['title'].apply(lambda x: is_merge(x))
-            # project_id_out_of_func = project_id
-            # t['new_time_utc'] = t['time'].apply(lambda x: convert_time(x))
-        # time_commit = convert_time(t[t.sha == commit_sha][0].values[0].created_at)
 
         for file_name in tqdm(file_names):
 
@@ -511,14 +557,22 @@ class Parser:
         return pd.Series([file_past, file_new, array_past, array_new, flag])
 
     def get_project_commits(self, project_id: str):
-        """Returns commits of the given project as json"""
+        """
+        Возвращает коммиты проекта
+        :param project_id: id проекта
+        :return: список коммитов проекта
+        """
         url = f"https://git.miem.hse.ru/api/v4/projects/{project_id}/repository/commits"
         response = requests.get(url=url, headers=self.HEADERS)
         commits = response.json()
         return commits
 
     def get_project_commits_with_basic_features_web(self, project_id: str):
-        """Returns project's commits with basic features as pandas DataFrame"""
+        """
+        Возвращает коммиты проекта с базовыми признаками в виде pandas DataFrame.
+        :param project_id: id проекта
+        :return: датафрейм с базовыми признаками
+        """
         commits = self.get_project_commits(project_id)
         df = pd.DataFrame(data=None, columns=[
             "project_id",
@@ -533,12 +587,20 @@ class Parser:
         return self.__handle_commits(project_id, commits, df)
 
     def get_project_commits_with_all_features_web(self, project_id: str):
-        """Returns project's commits with all features"""
+        """
+        Возвращает коммиты проекта со всеми признаками
+        :param project_id: id проекта
+        :return: датафрейм со всеми признаками
+        """
         df = self.get_project_commits_with_basic_features_web(project_id)
         return self.__get_advanced_data(df)
 
     def get_project_merge_requests_web(self, project_id: str):
-        """Return merge requests"""
+        """
+        Вернуть мердж реквесты проекта
+        :param project_id: id проекта
+        :return: список мердж реквестов
+        """
         url = f"https://git.miem.hse.ru/api/v4/projects/{project_id}/merge_requests"
         response = requests.get(url=url, headers=self.HEADERS)
         merges = response.json()
@@ -546,9 +608,12 @@ class Parser:
 
     def get_merge_commits_web(self, project_id, iid=-1):
         """
-        Returns merge commits with basic features
-        if iid equals -1 then returns all merge commits
-        else returns commits of specific merge request
+        Возвращает коммиты мердж реквеста с базовыми функциями
+        если iid равен -1, то возвращает все коммиты мердж реквеста
+        иначе возвращает коммиты определенного мердж реквеста
+        :param project_id: id проекта
+        :param iid: id мердж реквеста
+        :return:
         """
         df = pd.DataFrame(data=None, columns=[
             "project_id",
