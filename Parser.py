@@ -91,11 +91,12 @@ class Parser:
         df['Imports added'] = df['add'].apply(lambda x: self.find_import(x))
         df['Imports deleted'] = df['del'].apply(lambda x: self.find_import(x))
 
-        #df['diff'] = df['diff'].apply(lambda x: literal_eval(x))
+        # df['diff'] = df['diff'].apply(lambda x: literal_eval(x))
         df['path'] = df['diff'].apply(lambda x: self.get_path(x))
 
         df['file_new'] = ''
         df['file_past'] = ''
+
         df = df[df['files changed'] > 0]
 
         df.reset_index(drop=True, inplace=True)
@@ -103,26 +104,28 @@ class Parser:
         df['count_py_files'] = 0
         df['count_py_files'] = df['path'].apply(lambda x: self.count_py_file(x))
 
-        df = df[df.count_py_files > 0]
-        df.reset_index(drop=True, inplace=True)
-
         df['flag'] = 0
         df['array_past'] = 0
         df['array_new'] = 0
-
+        df['key_words_code_added'] = df['add'].apply(lambda x: self.find_key_word_code(x))
+        df['key_words_code_deleted'] = df['add'].apply(lambda x: self.find_key_word_code(x))
+        df["key_words"] = df["commit_message"].apply(lambda x: self.find_key_words_message(x))
+        df = df[df.count_py_files > 0]
+        df.reset_index(drop=True, inplace=True)
+        if len(df) == 0:
+            return df
         df[['file_past', 'file_new', 'array_past', 'array_new', 'flag']] = df.apply(
             lambda row: self.get_whole_file(row['project_id'],
-                                      row['commit_id'],
-                                      row['path']), axis=1)
+                                            row['commit_id'],
+                                            row['path']), axis=1)
         df = df.fillna(' ;')
+
         df['lines_inserted'] = df['add'].apply(func=count_lines)
         df['lines_deleted'] = df['del'].apply(func=count_lines)
         df = df[df["file_past"].apply(str).apply(len) > 20]
         df = df[df["file_new"].apply(str).apply(len) > 20]
         df.drop(["flag", "files changed"], axis=1, inplace=True)
         df.reset_index(drop=True, inplace=True)
-        df["add"] = df["add"].replace(np.nan, "")
-        df["del"] = df["del"].replace(np.nan, "")
         return df
 
     def get_merge_requests_file(self, input_file: str, output_file: str) -> None:
@@ -218,12 +221,13 @@ class Parser:
 
         df.to_csv(output_file)
 
-    @staticmethod
-    def prepare_data(input_file: str, output_file=None) -> None:
+    def get_all_features_file(self, input_file: str, output_file=None) -> None:
         """Get advanced features"""
         if output_file is None:
             output_file = input_file
-        pass
+        df = pd.read_csv(input_file, index_col=[0])
+        df["target"] = np.nan
+        self.__get_advanced_data(df).to_csv(output_file)
 
     @staticmethod
     def get_difference(changes):
@@ -330,6 +334,33 @@ class Parser:
         return len([m.start() for m in re.finditer('import', add)])
 
     @staticmethod
+    def find_key_word_code(code):
+        """Finds key words def, class in code"""
+        d = {}
+        d["def"] = len([m.start() for m in re.finditer('def', code)])
+        d["class"] = len([m.start() for m in re.finditer('class', code)])
+        return d
+
+    @staticmethod
+    def find_key_words_message(message):
+        key_words = ["remove", "merge branch", "fix", "add",
+                         "update", "change", "release", "correct", "replace",
+                         "deleted", "refactor", "clean", "test", "minor", "prepar",
+                         "move", "feature", "optimization", "resolv", "improve",
+                         "feat", "rename", "debug"]
+        res = []
+        temp = message.split()
+        for key_word in key_words:
+            for word in temp:
+                if word.lower().startswith(key_word):
+                    if key_word == "prepar":
+                        res.append("prepare")
+                    if key_word == "resolv":
+                        res.append("resolve")
+                    res.append(key_word)
+        return res
+
+    @staticmethod
     def get_path(diff):
         '''
         Вход: diff коммита
@@ -337,6 +368,8 @@ class Parser:
         '''
         false_commit = ''
         paths = []
+        if isinstance(diff, str):
+            diff = eval(diff)
         for commit in diff:
             try:
                 # paths += commit['new_path'] + ';;'
@@ -541,3 +574,11 @@ class Parser:
                                    headers=self.HEADERS).json()  # Получаем коммиты
             df = self.__handle_commits(project_id, commits, df)
             return self.__get_advanced_data(df)
+
+
+if __name__ == "__main__":
+    p = Parser(token="BxntftQ1zwq_28vtS2Qm")
+    p.get_all_features_file(input_file="Data/get_merge_commits_file/output_get_merge_commits_file.csv",
+                            output_file="Data/get_all_features/output_all_features.csv")
+    df = pd.read_csv("Data/get_all_features/output_all_features.csv", index_col=[0])
+    print(df.columns)
