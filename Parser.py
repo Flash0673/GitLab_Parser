@@ -574,11 +574,3 @@ class Parser:
                                    headers=self.HEADERS).json()  # Получаем коммиты
             df = self.__handle_commits(project_id, commits, df)
             return self.__get_advanced_data(df)
-
-
-if __name__ == "__main__":
-    p = Parser(token="BxntftQ1zwq_28vtS2Qm")
-    p.get_all_features_file(input_file="Data/get_merge_commits_file/output_get_merge_commits_file.csv",
-                            output_file="Data/get_all_features/output_all_features.csv")
-    df = pd.read_csv("Data/get_all_features/output_all_features.csv", index_col=[0])
-    print(df.columns)
